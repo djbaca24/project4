@@ -31,10 +31,20 @@ void sendmsg (char *user, char *target, char *msg) {
 	// Send a request to the server to send the message (msg) to the target user (target)
 	// by creating the message structure and writing it to server's FIFO
 
+	struct message req;
+	strcpy(req.source, user);
+	strcpy(req.target, target);
+	strcpy(req.msg, msg);
 
+	int server_fd = open("serverFIFO", O_WRONLY);
+	if (server_fd < 0) {
+	   perror("Error writing to server FIFO");
+	}
 
-
-
+	if (write(server_fd, &req, sizeof(req)) < 0) {
+	   perror("Error writing to server FIFO");
+	}
+	close(server_fd);
 
 
 
@@ -49,10 +59,23 @@ void* messageListener(void *arg) {
 	// Incoming message from [source]: [message]
 	// put an end of line at the end of the message
 
+	char fifoName[100];
+	sprintf(fifoName, "%s", uName);
 
+	int user_fd = open(fifoName, O_RDONLY);
+	if (user_fd < 0) {
+	   perror("Error opening user FIFO");
+	   pthread_exit((void *)1);
+	}
+	struct message incoming;
+	while (1) {
+	    ssize_t bytesRead = read(user_fd, &incoming, sizeof(incoming));
+   	    if (bytesRead > 0) {
+		printf("\nIncoming message from %s: %s\nrsh>", incoming.source, incoming.msg);
+	    }
+	}
 
-
-
+	close(user_fd);
 
 	pthread_exit((void*)0);
 }
@@ -86,7 +109,11 @@ int main(int argc, char **argv) {
     // TODO:
     // create the message listener thread
 
-
+    pthread_t listenerThread;
+    if (pthread_create(&listenerThread, NULL, messageListener, NULL) != 0) {
+	perror("Error creating message listener thread");
+	exit(1);
+    }
 
 
 
@@ -124,13 +151,18 @@ int main(int argc, char **argv) {
 		// if no message is specified, you should print the followingA
  		// printf("sendmsg: you have to enter a message\n");
 
+	   	char *target = strtok(NULL, " ");
+	   	if (!target) {
+	       		printf("sendmsg: you have to specify target user\n");
+	       		continue;
+	   	}
 
-
-
-
-
-
-
+	   	char *message = strtok(NULL, "");
+	   	if (!message) {
+	       		printf("sendmsg: you have to enter a message\n");
+	       		continue;
+	   	}
+	   	sendmsg(uName, target, message);
 
 
 		continue;

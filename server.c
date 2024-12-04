@@ -32,10 +32,15 @@ int main() {
 		// TODO:
 		// read requests from serverFIFO
 
-
-
-
-
+		ssize_t bytesRead = read(server, &req, sizeof(req));
+		if (bytesRead <= 0) {
+		    if (bytesRead == 0) {
+			printf("No more clients connected. Waiting for requests...\n");
+		    } else {
+			perror("Error reading from server FIFO");
+		    }
+		    continue;
+		}
 
 		printf("Received a request from %s to send the message %s to %s.\n",req.source,req.msg,req.target);
 
@@ -44,10 +49,15 @@ int main() {
 		// close target FIFO after writing the message
 
 
+		char targetFifo[100];
+		sprintf(targetFifo, "%s", req.target);
 
-
-
-
+		target = open(targetFifo, O_WRONLY);
+		if (target < 0) {
+		    perror("Error opening target FIFO");
+		}
+                write(target,&req, sizeof(req)); 
+		close(target);
 
 	}
 	close(server);
